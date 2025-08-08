@@ -1,0 +1,297 @@
+<!doctype html>
+
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Converter TXT ➜ VCF (Multi-Negara + Otomatis)</title>
+  <style>
+    :root{--bg:#f7f7fb;--card:#fff;--text:#1f2937;--muted:#6b7280;--accent:#2563eb;--border:#e5e7eb}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
+    .container{max-width:1100px;margin:0 auto;padding:24px}
+    h1{font-size:28px;margin:0 0 6px} p.lead{color:var(--muted);margin:0 0 20px}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px}
+    @media(min-width:900px){.grid{grid-template-columns:1.1fr .9fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .card .content{padding:20px}
+    label{display:block;font-weight:600;margin:12px 0 6px}
+    input[type="text"],input[type="number"],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff}
+    textarea{min-height:160px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    .row{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:700px){.row.cols-2{grid-template-columns:1fr 1fr}.row.cols-3{grid-template-columns:repeat(3,1fr)}}
+    .inline{display:flex;align-items:center;gap:8px}
+    .btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
+    .btn.secondary{background:#e5e7eb;color:#111}
+    .note{font-size:12px;color:#b45309;margin-top:4px}
+    .muted{color:var(--muted)}
+    .space{height:8px}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Converter TXT ➜ VCF (Multi-Negara + Otomatis)</h1>
+    <p class="lead">Tempel TXT berantakan pun bisa. Deteksi otomatis nomor yang dipisah koma/spasi/enter. Dukung Hong Kong (+852), Jerman (+49), Malaysia (+60), dll.</p>
+    <div id="totalCount" class="note" style="margin-bottom:10px">Total Nomor: 0</div><div class="grid">
+  <div class="card"><div class="content">
+    <div class="row cols-2">
+      <div>
+        <label>Upload file (.txt / .csv)</label>
+        <input id="file" type="file" accept=".txt,.csv" />
+      </div>
+      <div>
+        <label>Atau tempel data</label>
+        <textarea id="raw" placeholder="Contoh:\n6282828382,62728282\n6373828282, 627382832\n6282838382 , 6382939393\n6272727272\n6272828283\n+\n0"></textarea>
+        <div class="note">Tidak perlu kolom nama. Baris boleh berisi 1 atau banyak nomor, dipisah koma/spasi.</div>
+      </div>
+    </div>
+
+    <div class="row cols-3">
+      <div>
+        <label>Mode gabung per baris</label>
+        <div class="inline">
+          <input id="mergeLine" type="checkbox" />
+          <span class="muted">Jika dicentang, <b>setiap baris</b> menjadi 1 kontak (bisa multi nomor). Jika tidak, <b>setiap nomor</b> jadi 1 kontak.</span>
+        </div>
+      </div>
+      <div>
+        <label>Kontak per file (gabung)</label>
+        <input id="chunk" type="number" min="0" value="0" placeholder="0 = semua dalam 1 file" />
+      </div>
+      <div>
+        <label>Satu kontak = satu file (ZIP)</label>
+        <div class="inline"><input id="perFile" type="checkbox" /><span class="muted">Setiap kontak jadi 1 .vcf</span></div>
+      </div>
+    </div>
+
+    <div class="row cols-3">
+      <div>
+        <label>Kode negara default</label>
+        <select id="countryDefault">
+          <option value="+62" selected>Indonesia (+62)</option>
+          <option value="+852">Hong Kong (+852)</option>
+          <option value="+49">Jerman (+49)</option>
+          <option value="+60">Malaysia (+60)</option>
+          <option value="+63">Filipina (+63)</option>
+          <option value="+65">Singapura (+65)</option>
+          <option value="+1">AS (+1)</option>
+          <option value="custom">Kustom…</option>
+        </select>
+        <input id="countryCustom" type="text" placeholder="contoh: +852" style="margin-top:6px; display:none" />
+      </div>
+      <div>
+        <label>Nama file dasar</label>
+        <input id="base" type="text" value="contacts" />
+      </div>
+      <div>
+        <label>Nomor file mulai</label>
+        <input id="start" type="number" min="0" value="1" />
+      </div>
+    </div>
+
+    <div class="space"></div>
+    <div class="inline" style="gap:10px">
+      <button id="convert" class="btn">Konversi & Unduh</button>
+      <button id="clear" class="btn secondary">Bersihkan</button>
+    </div>
+  </div></div>
+
+  <div class="card"><div class="content">
+    <h3 style="margin:0 0 10px">Pratinjau (maks 5 baris)</h3>
+    <div style="overflow:auto;border:1px solid var(--border);border-radius:12px">
+      <table id="previewTbl">
+        <thead><tr id="previewHead"></tr></thead>
+        <tbody id="previewBody"><tr><td class="muted" style="padding:16px">Belum ada data</td></tr></tbody>
+      </table>
+    </div>
+    <h3 style="margin:18px 0 8px">Catatan</h3>
+    <ul class="muted">
+      <li>Simbol tunggal seperti <code>+</code> atau <code>0</code> di baris sendiri akan diabaikan otomatis.</li>
+      <li>Nomor yang sudah dalam format internasional (pakai <code>+</code>) tidak diubah.</li>
+      <li>Nomor lokal diawali 0 → diubah ke internasional pakai kode negara default.</li>
+    </ul>
+  </div></div>
+</div>
+
+  </div><script>
+  const el = (id)=>document.getElementById(id);
+  const fileEl = el('file');
+  const rawEl = el('raw');
+  const countryDefaultEl = el('countryDefault');
+  const countryCustomEl = el('countryCustom');
+  const mergeLineEl = el('mergeLine');
+  const perFileEl = el('perFile');
+  const chunkEl = el('chunk');
+  const baseEl = el('base');
+  const startEl = el('start');
+  const convertBtn = el('convert');
+  const clearBtn = el('clear');
+
+  const headRow = el('previewHead');
+  const body = el('previewBody');
+  const totalCountEl = el('totalCount');
+
+  fileEl.addEventListener('change', (e)=>{
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = (ev)=>{ rawEl.value = String(ev.target.result||''); renderPreview(); updateTotal(); };
+    r.readAsText(f);
+  });
+
+  [rawEl, mergeLineEl, countryDefaultEl].forEach(elm=>{
+    elm.addEventListener('input', ()=>{ renderPreview(); updateTotal(); });
+    elm.addEventListener('change', ()=>{ renderPreview(); updateTotal(); });
+  });
+
+  countryDefaultEl.addEventListener('change', ()=>{
+    countryCustomEl.style.display = countryDefaultEl.value === 'custom' ? 'block' : 'none';
+  });
+
+  function pickDefaultDial(){
+    if(countryDefaultEl.value === 'custom'){
+      const v = (countryCustomEl.value||'').trim();
+      return /^\+\d+$/.test(v) ? v : '+62';
+    }
+    return countryDefaultEl.value;
+  }
+
+  function extractNumbers(){
+    const lines = (rawEl.value||'').replace(/\r\n?/g,'\n').split('\n');
+    const result = [];
+    for(const line of lines){
+      // ambil token angka panjang minimal 5 digit atau format +
+      const matches = (line.match(/\+?\d{5,}/g) || []).map(s=>s.trim());
+      // buang token aneh seperti hanya '+' atau '0'
+      const cleaned = matches.filter(s=> s !== '+' && s !== '0');
+      result.push(cleaned);
+    }
+    return result; // array of arrays (per baris)
+  }
+
+  function countNumbers(){
+    const perLine = extractNumbers();
+    return perLine.reduce((acc, arr)=> acc + arr.length, 0);
+  }
+
+  function renderPreview(){
+    const perLine = extractNumbers();
+    headRow.innerHTML = '';
+    body.innerHTML = '';
+    const th1 = document.createElement('th'); th1.textContent = 'Baris'; headRow.appendChild(th1);
+    const th2 = document.createElement('th'); th2.textContent = mergeLineEl.checked ? 'Nomor (gabung per baris)' : 'Nomor'; headRow.appendChild(th2);
+
+    let shown = 0;
+    for(let i=0;i<perLine.length && shown<5;i++){
+      const nums = perLine[i];
+      if(nums.length===0) continue;
+      const tr = document.createElement('tr');
+      const td1 = document.createElement('td'); td1.textContent = String(i+1); tr.appendChild(td1);
+      const td2 = document.createElement('td'); td2.textContent = mergeLineEl.checked ? nums.join(', ') : nums.join(' | '); tr.appendChild(td2);
+      body.appendChild(tr);
+      shown++;
+    }
+
+    if(shown===0){ body.innerHTML = '<tr><td class="muted" colspan="2" style="padding:16px">Belum ada nomor terdeteksi</td></tr>'; }
+  }
+
+  function escapeVCF(s){ return String(s).replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;'); }
+
+  function normalizePhone(phone){
+    if(!phone) return '';
+    const dial = pickDefaultDial();
+    const digits = String(phone).replace(/[^0-9+]/g,'');
+    if(/^\+\d+$/.test(digits)) return digits;
+    if(/^0\d+$/.test(digits)) return dial + digits.slice(1);
+    if(/^\d+$/.test(digits)) return dial + digits;
+    return digits;
+  }
+
+  function makeVCardMulti(name, phones){
+    const nm = (name||'Tanpa Nama').toString().trim();
+    const lines = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      'N:;' + escapeVCF(nm) + ';;;',
+      'FN:' + escapeVCF(nm)
+    ];
+    phones.forEach(ph=>{ if(ph){ lines.push('TEL;TYPE=CELL:' + ph); } });
+    lines.push('END:VCARD','');
+    return lines.join('\n');
+  }
+
+  async function convert(){
+    const perLine = extractNumbers();
+    const base = (baseEl.value||'contacts').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'contacts';
+    const start = Number(startEl.value||1);
+    const chunk = Number(chunkEl.value||0);
+
+    // build vcards
+    const vcards = [];
+    if(mergeLineEl.checked){
+      let idx = 1;
+      for(const nums of perLine){
+        if(nums.length===0) continue;
+        const normalized = nums.map(normalizePhone);
+        vcards.push(makeVCardMulti('Kontak ' + String(idx).padStart(3,'0'), normalized));
+        idx++;
+      }
+    } else {
+      let idx = 1;
+      for(const nums of perLine){
+        for(const n of nums){
+          const normalized = normalizePhone(n);
+          vcards.push(makeVCardMulti('Kontak ' + String(idx).padStart(3,'0'), [normalized]));
+          idx++;
+        }
+      }
+    }
+
+    if(vcards.length===0){ alert('Tidak ada nomor valid yang terdeteksi.'); return; }
+
+    if(perFileEl.checked){
+      const zip = new JSZip();
+      vcards.forEach((vcf,i)=>{
+        const num = String(start + i).padStart(3,'0');
+        zip.file(`${base}-${num}.vcf`, vcf);
+      });
+      const blob = await zip.generateAsync({type:'blob'});
+      downloadBlob(blob, `${base}-perkontak.zip`);
+      return;
+    }
+
+    if(chunk > 0){
+      const zip = new JSZip();
+      let fileIdx = 0;
+      for(let i=0; i<vcards.length; i+=chunk){
+        const part = vcards.slice(i,i+chunk).join('\n');
+        const num = String(start + fileIdx).padStart(3,'0');
+        zip.file(`${base}-${num}.vcf`, part);
+        fileIdx++;
+      }
+      const blob = await zip.generateAsync({type:'blob'});
+      downloadBlob(blob, `${base}-chunked.zip`);
+      return;
+    }
+
+    const blob = new Blob([vcards.join('\n')], {type:'text/vcard;charset=utf-8'});
+    downloadBlob(blob, `${base}.vcf`);
+  }
+
+  function updateTotal(){ totalCountEl.textContent = `Total Nomor: ${countNumbers()}`; }
+
+  function downloadBlob(blob, filename){
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+
+  convertBtn.addEventListener('click', convert);
+  clearBtn.addEventListener('click', ()=>{ rawEl.value=''; renderPreview(); updateTotal(); });
+
+  // init
+  renderPreview();
+  updateTotal();
+</script></body>
+</html>
