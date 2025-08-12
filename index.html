@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="id">    
+<head>    
+  <meta charset="utf-8" />    
+  <meta name="viewport" content="width=device-width, initial-scale=1" />    
+  <title>VCF Renamer — Ganti Nama Kontak Massal</title>
+  <!-- Font Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>    
+    /* === Tema Rynn (light, pastel blue) === */    
+    :root{    
+      --bg:#eaf2ff; --card:#ffffff; --text:#0f172a; --muted:#6b7280;    
+      --accent:#3b82f6; --accent-hover:#2563eb; --border:#e5e7eb;    
+      --shadow:0 8px 24px rgba(15,23,42,.06); --radius:18px;    
+    }    
+    *{box-sizing:border-box}    
+    body{    
+      margin:0;background:var(--bg);color:var(--text);    
+      font:16px/1.55 "Inter",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;    
+    }    
+    .wrap{max-width:980px;margin:0 auto;padding:24px}    
+    h1{font-size:28px;margin:0 0 6px;font-weight:700}    
+    p.lead{color:var(--muted);margin:0 0 16px}
+
+    .card{    
+      background:var(--card);border:1px solid var(--border);    
+      border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;    
+    }    
+    label{display:block;font-weight:600;margin:12px 0 6px}    
+    input,select,button{font:inherit}    
+    input[type="text"],input[type="number"],select{    
+      width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:14px;background:#fff;color:var(--text);outline:none;    
+    }    
+    input:focus,select:focus{    
+      border-color:var(--accent);box-shadow:0 0 0 4px rgba(59,130,246,.15);    
+    }    
+
+    .grid{display:grid;gap:14px}    
+    @media(min-width:800px){.grid.cols-2{grid-template-columns:1fr 1fr}.grid.cols-3{grid-template-columns:repeat(3,1fr)}}    
+    .inline{display:flex;align-items:center;gap:8px}    
+
+    /* Buttons */    
+    .btn{    
+      display:inline-flex;align-items:center;gap:8px;border-radius:14px;padding:10px 16px;font-weight:700;    
+      cursor:pointer;border:1.5px solid transparent;transition:.15s;    
+    }    
+    .btn:hover{filter:brightness(.98)}    
+    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}    
+    .btn.primary:hover{background:var(--accent-hover)}    
+    .btn.secondary{background:#fff;color:var(--accent);border-color:var(--accent)}    
+    .btn.secondary:hover{background:#f1f5ff}    
+
+    /* Baris tombol aksi */
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+    .actions .group{display:flex;gap:10px}
+
+    table{width:100%;border-collapse:collapse;margin-top:10px;background:#fff;border-radius:14px;overflow:hidden}    
+    th,td{padding:10px;border-top:1px solid var(--border);text-align:left}    
+    thead th{background:#f8faff}    
+
+    .muted{color:var(--muted)}    
+    .note{font-size:12px;color:#b45309}    
+
+    /* Tooltip */    
+    .tip{    
+      display:inline-flex;justify-content:center;align-items:center;width:18px;height:18px;border-radius:50%;    
+      background:#e8efff;color:#1e3a8a;font-weight:700;font-size:12px;cursor:pointer;margin-left:6px;user-select:none    
+    }    
+    .tip:focus{outline:2px solid #93c5fd;outline-offset:2px}    
+    .tooltip{    
+      position:fixed;z-index:9999;max-width:320px;background:#111;color:#fff;padding:10px 12px;border-radius:12px;    
+      font-size:13px;line-height:1.35;box-shadow:0 10px 30px rgba(0,0,0,.35);display:none;white-space:pre-wrap    
+    }
+  </style>
+</head>
+
+<body>    
+  <div class="wrap">    
+    <h1>VCF Renamer</h1>    
+    <p class="lead">Upload file <code>.vcf</code> lalu ubah nama (FN/N) massal sesuai pola. <span class="muted">Tidak pakai nama file.</span></p>
+
+    <div class="grid cols-2">    
+      <div class="card">    
+        <label>Upload .vcf</label>    
+        <input id="file" type="file" accept=".vcf,text/vcard" />    
+
+        <div class="grid cols-3">    
+          <div>    
+            <div class="inline">    
+              <label style="margin:0">Nama dasar</label>    
+              <span class="tip" tabindex="0" data-tip="Teks dasar. Contoh: 'Kontak' → Kontak 001, Kontak 002, ...">?</span>    
+            </div>    
+            <input id="base" type="text" value="Kontak" />    
+          </div>    
+          <div>    
+            <div class="inline">    
+              <label style="margin:0">Mulai dari</label>    
+              <span class="tip" tabindex="0" data-tip="Nomor awal penomoran.">?</span>    
+            </div>    
+            <input id="start" type="number" min="0" value="1" />    
+          </div>    
+          <div>    
+            <div class="inline">    
+              <label style="margin:0">Pad digit</label>    
+              <span class="tip" tabindex="0" data-tip="Jumlah digit (zero-pad). 3 → 001, 002.">?</span>    
+            </div>    
+            <input id="pad" type="number" min="1" value="3" />    
+          </div>    
+        </div>    
+
+        <div class="grid cols-3">    
+          <div class="inline" style="margin-top:6px">    
+            <input id="includePhone" type="checkbox" />
+            <label for="includePhone" style="margin:0">Sertakan nomor pertama di nama</label>    
+            <span class="tip" tabindex="0" data-tip="Nama jadi: Kontak 001 - +62812…">?</span>    
+          </div>    
+          <div class="inline" style="margin-top:6px">    
+            <input id="keepOriginal" type="checkbox" />
+            <label for="keepOriginal" style="margin:0">Simpan nama lama di NOTE</label>    
+            <span class="tip" tabindex="0" data-tip="Tambah baris NOTE: Old-FN=...">?</span>    
+          </div>    
+          <div class="inline" style="margin-top:6px">    
+            <input id="stripPhotos" type="checkbox" />
+            <label for="stripPhotos" style="margin:0">Hapus PHOTO (lebih ringan)</label>    
+            <span class="tip" tabindex="0" data-tip="Menghapus baris PHOTO;ENCODING=...">?</span>    
+          </div>    
+        </div>    
+
+        <!-- Aksi -->
+        <div class="actions">
+          <div class="group">
+            <button id="rename" class="btn primary">Rename</button>
+            <button id="clear" class="btn secondary">Bersihkan</button>
+          </div>
+          <!-- tombol hasil: muncul setelah rename -->
+          <div id="resultBtns" class="group" style="display:none">
+            <button id="download" class="btn secondary">Unduh .vcf</button>
+            <button id="shareWA" class="btn secondary">Share WA</button>
+            <button id="shareTG" class="btn secondary">Share Telegram</button>
+          </div>
+        </div>
+
+        <p id="status" class="note" style="margin-top:8px"></p>
+      </div>      
+
+      <div class="card">    
+        <h3 style="margin:0 0 8px">Pratinjau (maks 10 kontak)</h3>    
+        <div style="overflow:auto;border:1px solid var(--border);border-radius:14px">    
+          <table>    
+            <thead><tr><th>#</th><th>Nama lama</th><th>Nama baru</th><th>Nomor pertama</th></tr></thead>    
+            <tbody id="preview"><tr><td class="muted" colspan="4" style="padding:14px">Belum ada file</td></tr></tbody>    
+          </table>    
+        </div>    
+      </div>    
+    </div>
+  </div>
+
+  <!-- Tooltip tunggal -->
+  <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script>    
+/* ===== helpers element ===== */
+const el = (id)=>document.getElementById(id);    
+const fileEl = el('file');    
+const baseEl = el('base');    
+const startEl = el('start');    
+const padEl = el('pad');    
+const includePhoneEl = el('includePhone');    
+const keepOriginalEl = el('keepOriginal');    
+const stripPhotosEl = el('stripPhotos');    
+const renameBtn = el('rename');    
+const clearBtn = el('clear');    
+const resultBtns = el('resultBtns');
+const downloadBtn = el('download');
+const shareWABtn = el('shareWA');
+const shareTGBtn = el('shareTG');
+const previewBody = el('preview');    
+const statusEl = el('status');
+
+/* state */
+let rawVCF = '';
+let cards = [];
+let lastBlob = null;
+let lastFilename = '';
+
+/* ===== Tooltip ===== */
+const tooltip = document.getElementById('tooltip');
+document.addEventListener('click', (e)=>{
+  const t = e.target.closest('.tip');
+  if (t) {
+    e.preventDefault(); e.stopPropagation();
+    showTip(t, t.getAttribute('data-tip') || '');
+  } else { hideTip(); }
+});
+document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') hideTip(); });
+function showTip(anchor, text){
+  tooltip.style.display = 'block';
+  tooltip.setAttribute('aria-hidden','false');
+  tooltip.textContent = text;
+  const rect = anchor.getBoundingClientRect();
+  tooltip.style.left = '0px'; tooltip.style.top = '-9999px';
+  requestAnimationFrame(()=>{
+    const pad = 8, tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+    const left = Math.min(window.innerWidth - tw - 10, Math.max(10, rect.left));
+    const topAbove = rect.top - th - pad;
+    const top = (topAbove > 0 ? topAbove : rect.bottom + pad);
+    tooltip.style.left = left + 'px'; tooltip.style.top = top + 'px';
+  });
+}
+function hideTip(){ tooltip.style.display = 'none'; tooltip.setAttribute('aria-hidden','true'); }
+
+/* ===== File handling ===== */
+fileEl.addEventListener('change', async (e)=>{
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  rawVCF = await f.text();
+  cards = splitCards(rawVCF);
+  renderPreview();
+  lastBlob = null; lastFilename = '';
+  resultBtns.style.display = 'none';
+  statusEl.textContent = '';
+});
+
+clearBtn.addEventListener('click', ()=>{
+  fileEl.value = '';
+  rawVCF = '';
+  cards = [];
+  lastBlob = null; lastFilename = '';
+  previewBody.innerHTML = '<tr><td class="muted" colspan="4" style="padding:14px">Belum ada file</td></tr>';
+  statusEl.textContent = '';
+  resultBtns.style.display = 'none';
+});
+
+/* ===== Alur: klik Rename -> baru muncul tombol hasil ===== */
+renameBtn.addEventListener('click', ()=>{
+  if(!cards.length){ alert('Upload file .vcf dulu.'); return; }
+  const {blob, filename, size} = buildOutput();
+  lastBlob = blob; lastFilename = filename;
+  resultBtns.style.display = 'flex';
+  statusEl.textContent = `Siap! ${cards.length} kontak → ${filename} (${size} KB).`;
+});
+
+/* Tombol Unduh/Share (pakai hasil yang sudah dibuat) */
+downloadBtn.addEventListener('click', ()=>{
+  if(!lastBlob){ alert('Klik Rename dulu.'); return; }
+  downloadBlob(lastBlob, lastFilename);
+});
+shareWABtn.addEventListener('click', ()=>shareOutput('wa'));
+shareTGBtn.addEventListener('click', ()=>shareOutput('tg'));
+
+async function shareOutput(kind){
+  if(!lastBlob){ alert('Klik Rename dulu.'); return; }
+  const file = new File([lastBlob], lastFilename, {type:'text/vcard'});
+  const shareData = { title: 'VCF Renamer', text: 'Kontak hasil rename.', files: [file] };
+
+  // Coba native share (mobile modern) → kirim file langsung
+  try{
+    if (navigator.canShare && navigator.canShare({files:[file]})) {
+      await navigator.share(shareData);
+      return;
+    }
+  }catch(e){ /* fallback */ }
+
+  // Fallback (desktop/old browser): hanya buka WA/TG dengan teks (tanpa auto-unduh)
+  const msg = encodeURIComponent('Kontak hasil rename siap. Silakan lampirkan file yang diunduh.');
+  if(kind === 'wa'){
+    window.open('https://wa.me/?text=' + msg, '_blank');
+  } else {
+    window.open('https://t.me/share/url?url=&text=' + msg, '_blank');
+  }
+}
+
+/* ===== vCard helpers ===== */
+function splitCards(vcf){
+  const blocks = vcf.match(/BEGIN:VCARD[\s\S]*?END:VCARD/gim) || [];
+  return blocks.map(b => normalizeLineEndings(b));
+}
+function normalizeLineEndings(s){
+  return s.replace(/\r\n|\r/g, '\n').replace(/\n[ \t]/g, ''); // unfold folded lines
+}
+function getField(block, field){
+  const re = new RegExp('^' + field + '(?:;[^:]+)?:([^\\n\\r]+)$','im');
+  const m = block.match(re);
+  return m ? m[1].trim() : '';
+}
+function getAll(field, block){
+  const re = new RegExp('^' + field + '(?:;[^:]+)?:([^\\n\\r]+)$','img');
+  const out = []; let m; while((m = re.exec(block))){ out.push(m[1].trim()); }
+  return out;
+}
+function downloadBlob(blob, filename){
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+/* ===== Output hanya FN & TEL + jarak antar kontak ===== */
+function renameCards(blocks){
+  const base = baseEl.value || 'Kontak';
+  const start = parseInt(startEl.value||'1',10);
+  const pad = Math.max(1, parseInt(padEl.value||'3',10));
+  let counter = start;
+
+  const out = [];
+  blocks.forEach((blk)=>{
+    const tels = getAll('TEL', blk);
+    const firstPhone = (tels[0]||'').replace(/\s+/g,'').replace(/-/g,''); // rapikan nomor
+    const num = String(counter++).padStart(pad, '0');
+    const newName = base + '-' + num; // contoh: XION GACOR-3151
+
+    const newBlock = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      'FN:' + newName,
+      firstPhone ? 'TEL;TYPE=CELL:' + firstPhone : '',
+      'END:VCARD'
+    ].filter(Boolean).join('\n');
+
+    out.push(newBlock);
+  });
+
+  return out.join('\n\n'); // 1 baris kosong antar kontak
+}
+
+/* Build output sekali (buat tombol Unduh/Share) */
+function buildOutput(){
+  const text = renameCards(cards);
+  const blob = new Blob([text], {type:'text/vcard;charset=utf-8'});
+  const filename = (baseEl.value||'Kontak') + '-renamed.vcf';
+  const size = Math.max(1, Math.round(blob.size/1024));
+  return {blob, filename, size};
+}
+
+/* Preview tetap seperti UI asli (kolom lama) */
+function renderPreview(){
+  if(!cards.length){
+    previewBody.innerHTML = '<tr><td class="muted" colspan="4" style="padding:14px">Belum ada file</td></tr>';
+    statusEl.textContent = '';
+    return;
+  }
+  const base = baseEl.value || 'Kontak';
+  const start = parseInt(startEl.value||'1',10);
+  const pad = Math.max(1, parseInt(padEl.value||'3',10));
+
+  let rows = '';
+  for(let i=0;i<cards.length && i<10;i++){
+    const blk = cards[i];
+    const oldFN = getField(blk, 'FN');
+    const firstPhone = (getAll('TEL', blk)[0]||'').replace(/\s+/g,'').replace(/-/g,'');
+    const num = String(start + i).padStart(pad, '0');
+    const baseName = base + ' ' + num;
+    const newName = includePhoneEl.checked && firstPhone ? (baseName + ' - ' + firstPhone) : baseName;
+
+    rows += `<tr><td>${i+1}</td><td>${oldFN||'<span class="muted">(kosong)</span>'}</td><td>${newName}</td><td>${firstPhone||'<span class="muted">-</span>'}</td></tr>`;
+  }
+  previewBody.innerHTML = rows;
+  statusEl.textContent = `Total kontak terdeteksi: ${cards.length}`;
+}
+
+/* Live preview */
+[baseEl, startEl, padEl, includePhoneEl, keepOriginalEl, stripPhotosEl].forEach(x=>{
+  x.addEventListener('input', ()=>{ if(cards.length) renderPreview(); });
+  x.addEventListener('change', ()=>{ if(cards.length) renderPreview(); });
+});
+</script>
+</body>
+</html>
